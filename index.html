@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>National Animal Guesser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a5319 0%, #2d8b2d 50%, #4caf50 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .background-animals {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .animal-bg {
+            position: absolute;
+            font-size: 8rem;
+            color: black;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .animal-image {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            overflow: hidden;
+        }
+
+        .animal-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .input-area {
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .input-area input {
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 25px;
+            width: 300px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .input-area button {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background 0.3s;
+        }
+
+        .input-area button:hover {
+            background: #e55a2b;
+        }
+
+        .autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background: white;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            color: #333;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .autocomplete-item:hover {
+            background: #f0f0f0;
+        }
+
+        .autocomplete-item img {
+            width: 20px;
+            height: 15px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .hints {
+            margin: 20px 0;
+        }
+
+        .hint {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .hint.revealed {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .errors {
+            font-size: 1.2rem;
+            margin: 15px 0;
+            color: #ff6b6b;
+        }
+
+        .result {
+            font-size: 1.3rem;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.win {
+            background: rgba(76, 175, 80, 0.3);
+            display: block;
+        }
+
+        .result.lose {
+            background: rgba(244, 67, 54, 0.3);
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 600px) {
+            .animal-image {
+                width: 250px;
+                height: 250px;
+            }
+            
+            .input-area input {
+                width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animals" id="backgroundAnimals"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>National Animal Guesser</h1>
+            <p>Guess the country based on its national animal!</p>
+        </div>
+
+        <div class="game-area">
+            <div class="animal-image">
+                <img id="animalImage" src="" alt="National Animal">
+            </div>
+            
+            <div class="errors">Errors: <span id="errorCount">0</span>/5</div>
+            
+            <div class="input-area">
+                <input type="text" id="countryInput" placeholder="Enter country name..." autocomplete="off">
+                <button onclick="checkGuess()">Guess</button>
+                <div class="autocomplete" id="autocomplete"></div>
+            </div>
+
+            <div class="hints">
+                <div class="hint" id="hint1">Continent: ???</div>
+                <div class="hint" id="hint2">Official Language: ???</div>
+                <div class="hint" id="hint3">Population: ???</div>
+                <div class="hint" id="hint4">Neighboring Country: ???</div>
+            </div>
+
+            <div class="result" id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Database completo di animali nazionali
+        const animalsData = [
+            {
+                animal: "Bald Eagle",
+                country: "United States",
+                continent: "North America",
+                language: "English",
+                population: "331 million",
+                neighbors: ["Canada", "Mexico"],
+                image: "https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/us.png"
+            },
+            {
+                animal: "Giant Panda",
+                country: "China",
+                continent: "Asia",
+                language: "Mandarin",
+                population: "1.4 billion",
+                neighbors: ["Russia", "India", "Vietnam"],
+                image: "https://images.unsplash.com/photo-1529107381075-5b6fa0f8724f?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/cn.png"
+            },
+            {
+                animal: "Red Kangaroo",
+                country: "Australia",
+                continent: "Oceania",
+                language: "English",
+                population: "25 million",
+                neighbors: ["New Zealand"],
+                image: "https://images.unsplash.com/photo-1548761206-b2bc2e65424c?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/au.png"
+            },
+            {
+                animal: "Bengal Tiger",
+                country: "India",
+                continent: "Asia",
+                language: "Hindi",
+                population: "1.3 billion",
+                neighbors: ["Pakistan", "China", "Bangladesh"],
+                image: "https://images.unsplash.com/photo-1598751331615-2c855ed5b6f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/in.png"
+            },
+            {
+                animal: "Brown Bear",
+                country: "Russia",
+                continent: "Europe/Asia",
+                language: "Russian",
+                population: "144 million",
+                neighbors: ["China", "Finland", "Norway"],
+                image: "https://images.unsplash.com/photo-1573921470441-32ceb635f4c9?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/ru.png"
+            },
+            {
+                animal: "Lion",
+                country: "Kenya",
+                continent: "Africa",
+                language: "Swahili",
+                population: "53 million",
+                neighbors: ["Tanzania", "Uganda", "Ethiopia"],
+                image: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/ke.png"
+            },
+            {
+                animal: "Jaguar",
+                country: "Brazil",
+                continent: "South America",
+                language: "Portuguese",
+                population: "214 million",
+                neighbors: ["Argentina", "Colombia", "Peru"],
+                image: "https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/br.png"
+            },
+            {
+                animal: "Beaver",
+                country: "Canada",
+                continent: "North America",
+                language: "English, French",
+                population: "38 million",
+                neighbors: ["United States"],
+                image: "https://images.unsplash.com/photo-1599159340314-44c65384fafe?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/ca.png"
+            },
+            {
+                animal: "Springbok",
+                country: "South Africa",
+                continent: "Africa",
+                language: "Zulu, English",
+                population: "60 million",
+                neighbors: ["Namibia", "Botswana", "Zimbabwe"],
+                image: "https://images.unsplash.com/photo-1516914943479-89db7d9ae7f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/za.png"
+            },
+            {
+                animal: "Golden Eagle",
+                country: "Germany",
+                continent: "Europe",
+                language: "German",
+                population: "83 million",
+                neighbors: ["France", "Poland", "Austria"],
+                image: "https://images.unsplash.com/photo-1558149520-86e87baa0106?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/de.png"
+            },
+            {
+                animal: "Gallic Rooster",
+                country: "France",
+                continent: "Europe",
+                language: "French",
+                population: "67 million",
+                neighbors: ["Germany", "Spain", "Italy"],
+                image: "https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/fr.png"
+            },
+            {
+                animal: "Green Pheasant",
+                country: "Japan",
+                continent: "Asia",
+                language: "Japanese",
+                population: "126 million",
+                neighbors: ["South Korea", "China"],
+                image: "https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/jp.png"
+            },
+            {
+                animal: "Lion",
+                country: "United Kingdom",
+                continent: "Europe",
+                language: "English",
+                population: "67 million",
+                neighbors: ["Ireland", "France"],
+                image: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/gb.png"
+            },
+            {
+                animal: "Italian Wolf",
+                country: "Italy",
+                continent: "Europe",
+                language: "Italian",
+                population: "59 million",
+                neighbors: ["France", "Switzerland", "Austria"],
+                image: "https://images.unsplash.com/photo-1598751331615-2c855ed5b6f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/it.png"
+            },
+            {
+                animal: "Golden Eagle",
+                country: "Mexico",
+                continent: "North America",
+                language: "Spanish",
+                population: "128 million",
+                neighbors: ["United States", "Guatemala"],
+                image: "https://images.unsplash.com/photo-1558149520-86e87baa0106?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/mx.png"
+            },
+            {
+                animal: "Siberian Tiger",
+                country: "South Korea",
+                continent: "Asia",
+                language: "Korean",
+                population: "51 million",
+                neighbors: ["North Korea"],
+                image: "https://images.unsplash.com/photo-1598751331615-2c855ed5b6f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/kr.png"
+            },
+            {
+                animal: "Bull",
+                country: "Spain",
+                continent: "Europe",
+                language: "Spanish",
+                population: "47 million",
+                neighbors: ["Portugal", "France"],
+                image: "https://images.unsplash.com/photo-1599159340314-44c65384fafe?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/es.png"
+            },
+            {
+                animal: "Steppe Eagle",
+                country: "Egypt",
+                continent: "Africa",
+                language: "Arabic",
+                population: "104 million",
+                neighbors: ["Sudan", "Libya", "Israel"],
+                image: "https://images.unsplash.com/photo-1558149520-86e87baa0106?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/eg.png"
+            },
+            {
+                animal: "Thai Elephant",
+                country: "Thailand",
+                continent: "Asia",
+                language: "Thai",
+                population: "69 million",
+                neighbors: ["Myanmar", "Laos", "Cambodia"],
+                image: "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/th.png"
+            },
+            {
+                animal: "Rufous Hornero",
+                country: "Argentina",
+                continent: "South America",
+                language: "Spanish",
+                population: "45 million",
+                neighbors: ["Chile", "Brazil", "Uruguay"],
+                image: "https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/ar.png"
+            },
+            {
+                animal: "Kiwi",
+                country: "New Zealand",
+                continent: "Oceania",
+                language: "English",
+                population: "5 million",
+                neighbors: ["Australia"],
+                image: "https://images.unsplash.com/photo-1599159340314-44c65384fafe?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/nz.png"
+            },
+            {
+                animal: "Arabian Oryx",
+                country: "United Arab Emirates",
+                continent: "Asia",
+                language: "Arabic",
+                population: "9 million",
+                neighbors: ["Saudi Arabia", "Oman"],
+                image: "https://images.unsplash.com/photo-1516914943479-89db7d9ae7f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/ae.png"
+            },
+            {
+                animal: "Komodo Dragon",
+                country: "Indonesia",
+                continent: "Asia",
+                language: "Indonesian",
+                population: "273 million",
+                neighbors: ["Malaysia", "Papua New Guinea"],
+                image: "https://images.unsplash.com/photo-1575550959106-5a7defa08d27?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/id.png"
+            },
+            {
+                animal: "Turquoise-browed Motmot",
+                country: "El Salvador",
+                continent: "North America",
+                language: "Spanish",
+                population: "6 million",
+                neighbors: ["Guatemala", "Honduras"],
+                image: "https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/sv.png"
+            },
+            {
+                animal: "Andean Condor",
+                country: "Colombia",
+                continent: "South America",
+                language: "Spanish",
+                population: "50 million",
+                neighbors: ["Venezuela", "Brazil", "Peru"],
+                image: "https://images.unsplash.com/photo-1558149520-86e87baa0106?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/co.png"
+            },
+            {
+                animal: "Markhor",
+                country: "Pakistan",
+                continent: "Asia",
+                language: "Urdu",
+                population: "220 million",
+                neighbors: ["India", "Afghanistan", "Iran"],
+                image: "https://images.unsplash.com/photo-1516914943479-89db7d9ae7f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/pk.png"
+            },
+            {
+                animal: "Gray Wolf",
+                country: "Turkey",
+                continent: "Asia/Europe",
+                language: "Turkish",
+                population: "84 million",
+                neighbors: ["Greece", "Bulgaria", "Syria"],
+                image: "https://images.unsplash.com/photo-1598751331615-2c855ed5b6f2?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/tr.png"
+            },
+            {
+                animal: "White Stork",
+                country: "Poland",
+                continent: "Europe",
+                language: "Polish",
+                population: "38 million",
+                neighbors: ["Germany", "Czech Republic", "Ukraine"],
+                image: "https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/pl.png"
+            },
+            {
+                animal: "Lion",
+                country: "Ethiopia",
+                continent: "Africa",
+                language: "Amharic",
+                population: "117 million",
+                neighbors: ["Kenya", "Sudan", "Somalia"],
+                image: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/et.png"
+            },
+            {
+                animal: "Chollima",
+                country: "North Korea",
+                continent: "Asia",
+                language: "Korean",
+                population: "25 million",
+                neighbors: ["South Korea", "China", "Russia"],
+                image: "https://images.unsplash.com/photo-1599159340314-44c65384fafe?w=400&h=300&fit=crop",
+                flag: "https://flagcdn.com/w40/kp.png"
+            }
+        ];
+
+        // Lista di animali stilizzati per lo sfondo
+        const stylizedAnimals = ["🐘", "🦁", "🐯", "🦅", "🐼", "🦘", "🐻", "🦬", "🐺", "🦌", "🐪", "🦒", "🐃", "🦏", "🐗", "🦓", "🐆", "🐅", "🐊", "🐍"];
+
+        // Variabili di gioco
+        let currentAnimal;
+        let errors = 0;
+        let gameWon = false;
+
+        // Crea lo sfondo con animali stilizzati
+        function createBackground() {
+            const background = document.getElementById('backgroundAnimals');
+            for (let i = 0; i < 15; i++) {
+                const animal = document.createElement('div');
+                animal.className = 'animal-bg';
+                animal.textContent = stylizedAnimals[Math.floor(Math.random() * stylizedAnimals.length)];
+                animal.style.left = Math.random() * 100 + '%';
+                animal.style.top = Math.random() * 100 + '%';
+                animal.style.fontSize = (Math.random() * 4 + 6) + 'rem';
+                animal.style.opacity = Math.random() * 0.1 + 0.05;
+                background.appendChild(animal);
+            }
+        }
+
+        // Inizializza il gioco
+        function initGame() {
+            // Usa la data per selezionare un animale diverso ogni giorno
+            const today = new Date();
+            // UTC+1 adjustment
+            const utcPlus1 = new Date(today.getTime() + (60 * 60 * 1000));
+            const dayOfYear = Math.floor((utcPlus1 - new Date(utcPlus1.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+            const animalIndex = dayOfYear % animalsData.length;
+            
+            currentAnimal = animalsData[animalIndex];
+            
+            // Aggiorna l'immagine dell'animale
+            document.getElementById('animalImage').src = currentAnimal.image;
+            document.getElementById('animalImage').alt = currentAnimal.animal;
+            
+            document.getElementById('errorCount').textContent = errors;
+            
+            // Resetta gli hint
+            document.querySelectorAll('.hint').forEach(hint => {
+                hint.classList.remove('revealed');
+            });
+            
+            // Resetta il risultato
+            document.getElementById('result').className = 'result';
+            gameWon = false;
+        }
+
+        // Sistema di autocomplete
+        function setupAutocomplete() {
+            const input = document.getElementById('countryInput');
+            const autocomplete = document.getElementById('autocomplete');
+
+            input.addEventListener('input', function() {
+                const value = this.value.toLowerCase();
+                autocomplete.innerHTML = '';
+                
+                if (value.length < 2) {
+                    autocomplete.style.display = 'none';
+                    return;
+                }
+
+                const matches = animalsData.filter(animal => 
+                    animal.country.toLowerCase().includes(value)
+                );
+
+                if (matches.length > 0) {
+                    matches.forEach(animal => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.innerHTML = `
+                            <img src="${animal.flag}" alt="${animal.country} flag">
+                            ${animal.country}
+                        `;
+                        item.addEventListener('click', function() {
+                            input.value = animal.country;
+                            autocomplete.style.display = 'none';
+                            checkGuess();
+                        });
+                        autocomplete.appendChild(item);
+                    });
+                    autocomplete.style.display = 'block';
+                } else {
+                    autocomplete.style.display = 'none';
+                }
+            });
+
+            // Nascondi autocomplete quando clicchi fuori
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !autocomplete.contains(e.target)) {
+                    autocomplete.style.display = 'none';
+                }
+            });
+        }
+
+        // Controlla la risposta
+        function checkGuess() {
+            if (gameWon) return;
+
+            const input = document.getElementById('countryInput');
+            const guess = input.value.trim().toLowerCase();
+            const correctCountry = currentAnimal.country.toLowerCase();
+
+            // Nascondi autocomplete
+            document.getElementById('autocomplete').style.display = 'none';
+
+            if (guess === correctCountry) {
+                // Vittoria!
+                document.getElementById('result').textContent = `Correct! It's ${currentAnimal.country}! 🎉`;
+                document.getElementById('result').className = 'result win';
+                gameWon = true;
+            } else {
+                // Errore
+                errors++;
+                document.getElementById('errorCount').textContent = errors;
+                
+                // Rivela gli hint in ordine
+                revealHint(errors);
+                
+                if (errors >= 5) {
+                    // Sconfitta
+                    document.getElementById('result').textContent = `Game Over! The country was ${currentAnimal.country}. Watch an ad to reveal the answer!`;
+                    document.getElementById('result').className = 'result lose';
+                }
+                
+                input.value = '';
+            }
+        }
+
+        // Rivela gli hint
+        function revealHint(errorCount) {
+            const hints = [
+                { id: 'hint1', text: `Continent: ${currentAnimal.continent}` },
+                { id: 'hint2', text: `Official Language: ${currentAnimal.language}` },
+                { id: 'hint3', text: `Population: ${currentAnimal.population}` },
+                { id: 'hint4', text: `Neighboring Country: ${currentAnimal.neighbors[0]}` }
+            ];
+
+            if (errorCount <= hints.length) {
+                const hintElement = document.getElementById(hints[errorCount - 1].id);
+                hintElement.textContent = hints[errorCount - 1].text;
+                hintElement.classList.add('revealed');
+            }
+        }
+
+        // Supporto per Enter key
+        document.getElementById('countryInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkGuess();
+            }
+        });
+
+        // Controlla il cambio di giorno (UTC+1)
+        function checkDayChange() {
+            const lastPlayed = localStorage.getItem('lastPlayed');
+            const today = new Date();
+            const utcPlus1 = new Date(today.getTime() + (60 * 60 * 1000)); // UTC+1
+            const todayString = utcPlus1.toDateString();
+            
+            if (lastPlayed !== todayString) {
+                localStorage.setItem('lastPlayed', todayString);
+                errors = 0;
+                initGame();
+            }
+        }
+
+        // Inizializza al caricamento
+        window.onload = function() {
+            createBackground();
+            setupAutocomplete();
+            checkDayChange();
+            initGame();
+            
+            // Controlla ogni minuto se è cambiato il giorno (UTC+1)
+            setInterval(checkDayChange, 60000);
+        };
+    </script>
+</body>
+</html>
